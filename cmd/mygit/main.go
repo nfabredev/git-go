@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"compress/zlib"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -62,6 +65,38 @@ func main() {
 		fileContentArray := strings.Split(fileContent, "\x00")
 
 		fmt.Print(fileContentArray[1])
+
+	case "hash-object":
+		fileToSave := os.Args[3]
+		file, err := os.ReadFile(fileToSave)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		header := "blob" + " " + fmt.Sprint(len([]rune(string(file)))) + "\x00"
+		content := header + string(file)
+
+		h := sha1.New()
+		h.Write([]byte(content))
+		fileSHA := hex.EncodeToString(h.Sum(nil))
+
+		var b bytes.Buffer
+		writer := zlib.NewWriter(&b)
+		writer.Write([]byte(content))
+		writer.Close()
+
+		dir, filename := fileSHA[0:2], fileSHA[2:]
+		if err := os.Mkdir(".git/objects/"+dir, os.ModePerm); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = os.WriteFile((".git/objects/" + dir + "/" + filename), b.Bytes(), 0666)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		fmt.Print(fileSHA)
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
