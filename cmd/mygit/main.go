@@ -97,6 +97,36 @@ func main() {
 		}
 
 		fmt.Print(fileSHA)
+	case "ls-tree":
+		treeSHA := os.Args[3]
+		dir, filename := treeSHA[0:2], treeSHA[2:]
+
+		file, err := os.Open(".git/objects/" + dir + "/" + filename)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		reader, err := zlib.NewReader(file)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer reader.Close()
+
+		buf := new(strings.Builder)
+		_, err = io.Copy(buf, reader)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		treeContent := buf.String()
+
+		treeContentArray := strings.Split(treeContent," ")
+		for i := 2; i < len(treeContentArray); i++ {
+			fileContentArray := strings.Split(treeContentArray[i], "\x00")
+			fmt.Println(fileContentArray[0])
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
